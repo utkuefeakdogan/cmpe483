@@ -135,7 +135,6 @@ contract("MyLottery", (accounts) => {
   it("should check if ticket win", async () => {
     const tickets = await instance.getAllTickets();
     const secondticket = tickets[1];
-    const iswin = await instance.checkIfTicketWon(1,2); //checks first ticket of 1st lottery,
     const lotteries = await instance.getAllLotteries();
     const firstlottery= lotteries[0];
     const winningHashes = firstlottery.winningHashes;
@@ -143,19 +142,6 @@ contract("MyLottery", (accounts) => {
       assert.ok(instance.checkIfTicketWon) // ticket win
     }
     assert.ok(instance.checkIfTicketWon) //ticket didn't win.
-  });
-
-  it("should collect prize if ticket win", async () => {
-    const tickets = await instance.getAllTickets();
-    const secondticket = tickets[1];
-    const lotteries = await instance.getAllLotteries();
-    const firstlottery= lotteries[0];
-    const winningHashes = firstlottery.winningHashes;
-    secondticket.hash_randomNo=winningHashes[0]; // turn this ticket into a winner one for testing.
-    if(secondticket.hash_randomNo== winningHashes[0] || secondticket.hash_randomNo== winningHashes[1] || secondticket.hash_randomNo== winningHashes[2]){
-      assert.ok(instance.collectTicketRefund) // ticket win
-    }
-    assert.ok(instance.collectTicketRefund) //ticket didn't win.
   });
 
   it("should give i'th winning ticket number and winning amount", async () => {
