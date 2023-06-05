@@ -132,12 +132,13 @@ contract("MyLottery", (accounts) => {
     assert.ok(instance.checkIfTicketWon) //ticket didn't win.
   });
 
-  it("should check if ticket win", async () => {
+  it("should collect prize if ticket win", async () => {
     const tickets = await instance.getAllTickets();
     const secondticket = tickets[1];
     const lotteries = await instance.getAllLotteries();
     const firstlottery= lotteries[0];
     const winningHashes = firstlottery.winningHashes;
+    secondticket.hash_randomNo=winningHashes[0]; // turn this ticket into a winner one for testing.
     if(secondticket.hash_randomNo== winningHashes[0] || secondticket.hash_randomNo== winningHashes[1] || secondticket.hash_randomNo== winningHashes[2]){
       assert.ok(instance.checkIfTicketWon) // ticket win
     }

@@ -2,8 +2,8 @@ pragma solidity ^0.8.9;
 // SPDX-License-Identifier: MIT
 
 contract MyLottery {
-    address owner = address(0x0C63C76c610e2ebBE99385c339Adb18d303B8828); // this is my first address in ganache,
-    uint256 deployTime = 1682442914; // current block.timestamp ;
+    address owner = address(0x0C63C76c610e2ebBE99385c339Adb18d303B8828); // this is my metamask address,
+    uint256 deployTime = 1682592095; // current block.timestamp ;
     
     function getOwner() public view returns(address){  //check the owner
         return owner;
@@ -27,6 +27,7 @@ contract MyLottery {
     struct Lottery {
         uint256 lottery_id;
         bytes32[] winningHashes;
+        uint256 winningId;
         uint256 prizePoolofLottery;
     }
 
@@ -53,19 +54,18 @@ contract MyLottery {
     }
 
     // test function
-    function getBalance(address _address) public view  returns (uint) {
+    function getBalance(address _address) public view onlyOwner returns (uint) {
         return balances[_address];
     }
 
-    // test function
+    //this function is for testing
     function generateRandomHash() public view returns (bytes32) {
         uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty)));
         bytes32 randomHash = bytes32(randomNumber);
         return randomHash;
     }
 
-    // public for test reasons
-    function generateWinningHashes() public view returns (bytes32[3] memory) {
+    function generateWinningHashes() private view returns (bytes32[3] memory) {
         bytes32[3] memory winningHashes;
         for (uint256 i = 0; i < 3; i++) {
             uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty, i)));
@@ -74,14 +74,33 @@ contract MyLottery {
         return winningHashes;
     }
 
+    // After presentation, change winning conditions
+    function generateWinnerId() public view returns (uint256) {
+        uint upperBound = totalticketno;
+        uint256 lowerBound = 0;
+        if(currentLotteryNo!=1){
+            for (uint256 j = 0; j < totalticketno; j++) {
+                Ticket memory ticket = tickets[j];
+                  if (ticket.lotteryNo-1 == currentLotteryNo-1) {
+                       lowerBound++;
+                    }
+                }
+        }
+
+        uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty))) % (upperBound - lowerBound + 1);
+        return randomNumber + lowerBound+1;
+    }
+    
+
     //we will call this function via frontEnd every week, it will autonomously run the lottery.
     function LotteryFunction() public onlyOwner {
-        //require((deployTime - block.timestamp) - currentLotteryNo*(1 weeks)) < 0, "other lottery is running") 
-        //commented for test reasons
+        //require((deployTime - block.timestamp) - currentLotteryNo*(1 weeks)) < 0, "other lottery is running") commented
+        // for test reasons
         Lottery storage added_lottery = lotteries[currentLotteryNo];
         added_lottery.lottery_id = currentLotteryNo;
         added_lottery.winningHashes = generateWinningHashes();
         added_lottery.prizePoolofLottery = prizePool;
+        added_lottery.winningId= generateWinnerId();
         currentLotteryNo++;  
     }
 
@@ -126,7 +145,6 @@ contract MyLottery {
         }      
     }
 
-    //a function for checking allLotteries, remember this is onlyOwner.
     function getAllLotteries() public view onlyOwner returns(Lottery[] memory result) {
         result = new Lottery[](currentLotteryNo);
         for (uint i = 0; i < currentLotteryNo; i++) {
@@ -204,34 +222,42 @@ contract MyLottery {
 
 
     //returns the amount which ticket has won
-    function checkIfTicketWon(uint lottery_no, uint ticket_no) public returns (uint256 amount) {
+    function checkIfTicketWon(uint lottery_no, uint ticket_no) public returns (bool mybool) {
         Lottery storage winningLottery = lotteries[lottery_no-1];
         Ticket storage ticket = tickets[ticket_no-1];
-        if(ticket.hash_randomNo == winningLottery.winningHashes[0] || ticket.hash_randomNo == winningLottery.winningHashes[1] || ticket.hash_randomNo == winningLottery.winningHashes[2]){
-            amount=ticket.ticketWin;
+        // if(ticket.hash_randomNo == winningLottery.winningHashes[0] || ticket.hash_randomNo == winningLottery.winningHashes[1] || ticket.hash_randomNo == winningLottery.winningHashes[2]){
+        //    amount=ticket.ticketWin;
+        //}
+        if(ticket.ticket_id==winningLottery.winningId){
+            ticket.ticketWin=prizePool;
         }
+        
+        if(ticket.ticket_id==winningLottery.winningId){
+            mybool= true;
+        }
+        
         require(ticket.ticketStatus == 1, "Ticket has already refunded.");
         winningTickets[totalwinningticketno] = ticket;
         totalwinningticketno++;
-        amount=0; // 0 if the ticket didn't win
+        
     }
 
 
     function collectTicketPrize(uint lottery_no, uint ticket_no) public {
-        //require(((deployTime - block.timestamp) - currentLotteryNo*(1 weeks)) < 0); 
-        //commented for testing
-        Lottery storage winningLottery = lotteries[lottery_no];
-        Ticket storage ticket = tickets[ticket_no];
+        //require(((deployTime - block.timestamp) - currentLotteryNo*(1 weeks)) < 0); commented for testing
+        Lottery storage winningLottery = lotteries[lottery_no-1];
+        Ticket storage ticket = tickets[ticket_no-1];
         require(ticket.ticketStatus == 1, "Ticket has already refunded.");
-        require(ticket.hash_randomNo == winningLottery.winningHashes[1] || ticket.hash_randomNo == winningLottery.winningHashes[2] || ticket.hash_randomNo == winningLottery.winningHashes[3], "Ticket didn't win");
+        require(ticket.ticketWin!=0,"Ticket didn't win.");
+        //require(ticket.hash_randomNo == winningLottery.winningHashes[1] || ticket.hash_randomNo == winningLottery.winningHashes[2] || ticket.hash_randomNo == winningLottery.winningHashes[3], "Ticket didn't win");
                 if (ticket.ticketType == 1) {
-                    balances[ticket.ticketOwnerAddress] += winningLottery.prizePoolofLottery/2;
+                    balances[ticket.ticketOwnerAddress] += winningLottery.prizePoolofLottery;
                     prizePool = prizePool - winningLottery.prizePoolofLottery/2;
                 } else if (ticket.ticketType == 2) {
-                    balances[ticket.ticketOwnerAddress] += winningLottery.prizePoolofLottery/4;
+                    balances[ticket.ticketOwnerAddress] += winningLottery.prizePoolofLottery/2;
                     prizePool = prizePool - winningLottery.prizePoolofLottery/4;
                 } else if (ticket.ticketType == 3) {
-                    balances[ticket.ticketOwnerAddress] += winningLottery.prizePoolofLottery/8;
+                    balances[ticket.ticketOwnerAddress] += winningLottery.prizePoolofLottery/4;
                     prizePool = prizePool - winningLottery.prizePoolofLottery/8;
                 }
     }
